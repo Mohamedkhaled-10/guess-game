@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Guess The Actor — لعبة الممثل</title>
+
+  <!-- خطوط محسنة -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+
+  <!-- سياسة أمان أساسية (يمكن تعديلها على السيرفر لاحقاً) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; img-src 'self' https: data:; script-src 'self' https: 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:;">
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Firebase compat (أبقيتها كما عندك) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="firebase-init.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="logo">
+        <h1></h1>
+        <p class="tag"></p>
+      </div>
+
+      <div class="status" aria-live="polite">
+        <div class="coins" id="coins-wrap" title="رصيد الكوينز">
+          <svg class="icon icon-coin" aria-hidden="true"><use href="#icon-coin"></use></svg>
+          <span id="coins">0</span>
+        </div>
+
+        <!-- زر تبديل الصوت + slider صغير للتحكم في مستوى الصوت -->
+        <div class="sound-control" aria-hidden="false">
+          <button id="sound-toggle" class="btn small ghost" aria-pressed="false" title="تشغيل/إيقاف الأصوات">
+            <svg class="icon icon-speaker" aria-hidden="true"><use href="#icon-speaker"/></svg>
+            صوت
+          </button>
+          <input id="sound-volume" class="volume-slider" type="range" min="0" max="1" step="0.05" value="0.8" aria-label="مستوى الصوت"/>
+        </div>
+
+        <a class="btn small" href="dashboard.html" target="_blank" rel="noopener">لوحة التحكم</a>
+      </div>
+    </header>
+
+    <!-- إعلان Rewarded Modal -->
+    <div id="rewarded-ad" class="ad-modal hidden" role="dialog" aria-modal="true" aria-labelledby="ad-title">
+      <div class="ad-content">
+        <button id="close-ad-btn" class="close-ad hidden" aria-label="إغلاق الإعلان">
+          <svg class="icon"><use href="#icon-close"/></svg>
+        </button>
+        <img id="ad-image" src="" alt="إعلان" />
+        <p id="ad-timer">5</p>
+      </div>
+    </div>
+
+    <main class="container">
+      <section id="stages-container" class="stages-grid" aria-label="القوائم"></section>
+
+      <section id="game-screen" class="game-screen hidden" aria-hidden="true">
+        <div class="game-header">
+          <div class="left">
+            <button id="back-to-stages" class="btn ghost" aria-label="الرجوع">
+              <svg class="icon"><use href="#icon-back"/></svg>
+              رجوع
+            </button>
+            <div class="stage-info">
+              <h2 id="stage-title">المرحلة</h2>
+              <div id="progress" class="smallnote">0 / 10</div>
+            </div>
+          </div>
+          <div class="right smallnote">الهدف: كل إجابة صحيحة = 2 كوينز</div>
+        </div>
+
+        <div id="actor-card" class="actor-card" role="region" aria-live="polite">
+          <div class="actor-image-wrap">
+            <img id="actor-image" src="" alt="صورة الممثل" />
+          </div>
+
+          <div id="options" class="options-grid" role="list"></div>
+
+          <div class="game-footer">
+            <div id="round-result" aria-live="polite"></div>
+            <div class="footer-actions">
+              <div id="stage-score" class="smallnote"></div>
+              <button id="next-btn" class="btn hidden">التالي <svg class="icon"><use href="#icon-next"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="ad-reward-container">
+        <button id="watch-ad-btn" class="btn" aria-label="شاهد إعلان واحصل على 20 كوينز">
+          <svg class="icon"><use href="#icon-play"/></svg>
+          شاهد إعلان واحصل على 20 كوينز
+        </button>
+        <p id="ad-message" class="hidden">تمت إضافة 20 كوينز! 💰</p>
+      </div>
+
+    </main>
+
+    <footer class="footer">
+      <p>© تجربة لعب — مُطوَّرة بـ Firebase و localStorage</p>
+    </footer>
+  </div>
+
+  <!-- SVG sprite للأيقونات (واحد فقط في الصفحة) -->
+  <svg style="display:none;" aria-hidden="true">
+    <symbol id="icon-coin" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="12" y="16" font-size="10" text-anchor="middle" fill="currentColor" font-family="Arial" font-weight="700">$</text>
+    </symbol>
+    <symbol id="icon-play" viewBox="0 0 24 24"><path d="M5 3v18l15-9z" fill="currentColor"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M6 18L18 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="icon-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="M4 12l4 4L20 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-speaker" viewBox="0 0 24 24"><path d="M5 9v6h4l5 4V5L9 9H5z"/><path d="M16.5 8.5a4 4 0 010 7" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <script src="game.js" defer></script>
+</body>
+</html>
