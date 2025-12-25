@@ -135,7 +135,7 @@ button:focus{outline:2px solid rgba(255,255,255,0.06);outline-offset:3px}
   display:flex;align-items:center;justify-content:center;overflow:hidden;border:6px solid rgba(255,235,200,0.03);
   position:relative;
 }
-.actor-image-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s ease}
+.actor-image-wrap img{width:100%;height:100%;object-fit:contain;display:block;transition:transform .4s ease}
 .actor-image-wrap:hover img, .actor-image-wrap.hover img{transform:scale(1.04)}
 
 /* Options */
@@ -308,3 +308,4 @@ html,body{overflow-x:hidden}
     transform: translateY(0) scale(1);
   }
 }
+
