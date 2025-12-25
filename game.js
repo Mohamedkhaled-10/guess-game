@@ -693,7 +693,7 @@ function claimDailyReward(){
   const data = getDailyData();
   if(data && data.date === t) return alert('لقد استلمت المكافأة اليوم بالفعل');
   // simple reward: 5 coins, and progress towards a weekly reward could be tracked
-  coins += 5;
+  coins += 40;
   saveState();
   localStorage.setItem(STORAGE_KEYS.DAILY_REWARD, JSON.stringify({date: t, claimed: true}));
   SoundManager.play('coin');
@@ -757,3 +757,4 @@ window.__GTADATA = {
   getState: () => ({ coins, completedStages, unlockedStages, streak, xp, level, badges, stageStars, playCount }),
   addCoins: (n=1) => { coins += n; saveState(); updateCoinsDisplay(); }
 };
+
