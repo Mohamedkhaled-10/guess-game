@@ -697,7 +697,7 @@ function claimDailyReward(){
   saveState();
   localStorage.setItem(STORAGE_KEYS.DAILY_REWARD, JSON.stringify({date: t, claimed: true}));
   SoundManager.play('coin');
-  alert('تم منحك 5 عملات كمكافأة يومية 🎁');
+  alert('تم منحك 40 عملة كمكافأة يومية 🎁');
   // badge
   if(!badges.includes('daily')){ badges.push('daily'); saveState(); renderBadges(); }
 }
@@ -757,4 +757,5 @@ window.__GTADATA = {
   getState: () => ({ coins, completedStages, unlockedStages, streak, xp, level, badges, stageStars, playCount }),
   addCoins: (n=1) => { coins += n; saveState(); updateCoinsDisplay(); }
 };
+
 
