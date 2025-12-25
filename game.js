@@ -1,12 +1,13 @@
-/* game.js — محدث:
- - يحمّل مؤثرات MP3 (assets/sounds/*.mp3) ويستخدمها إن وجدت
- - يحتفظ بإعداد الصوت في localStorage gt_sound_pref
- - في حالة فشل التحميل أو حظر التشغيل يستخدم WebAudio tones كما كان سابقاً
- - أضفنا زر تبديل الصوت + تحكم مستوى الصوت
- - بقيت كل الميزات القديمة (Firebase, ads, gamelogic) كما هي
+/* game.js — محدث ليتوافق مع dashboard (stage.price, actor.adult):
+ - يستخدم الآن سعر المرحلة الموجود في Firebase (stage.price) بدل الرقم الثابت 20
+ - يعرض حالة "مجانية / سعر" في قائمة المراحل ومودال المعلومات
+ - زر الشراء يأخذ السعر من الـ stage ويخصم الكوينز المناسبة
+ - لا يغير باقي المنطق الأساسي (Firebase, ads, gamelogic, sounds)
 */
 
 'use strict';
+
+const DEFAULT_STAGE_PRICE = 20;
 
 const stagesContainer = document.getElementById('stages-container');
 const gameScreen = document.getElementById('game-screen');
@@ -80,8 +81,7 @@ const SoundManager = (function(){
     click: basePath + 'click.mp3',
     success: basePath + 'success.mp3',
     fail: basePath + 'fail.mp3',
-    coin: basePath + 'coin.mp3',
-    // optional: bg: basePath + 'bg.mp3'
+    coin: basePath + 'coin.mp3'
   };
   const audios = {};
   let enabled = true;
@@ -89,7 +89,6 @@ const SoundManager = (function(){
   let loaded = false;
 
   function load() {
-    // تحميل الأصوات كـ Audio objects
     Object.keys(files).forEach(key => {
       try {
         const a = new Audio();
@@ -98,33 +97,23 @@ const SoundManager = (function(){
         a.crossOrigin = "anonymous";
         a.volume = volume;
         audios[key] = a;
-        // read errors quietly
-        a.addEventListener('error', () => {
-          // remove on error to fallback to AudioEngine
-          delete audios[key];
-        });
-      } catch(e) {
-        // fallback: ignore
-      }
+        a.addEventListener('error', () => { delete audios[key]; });
+      } catch(e) { /* ignore */ }
     });
     loaded = true;
   }
 
   function play(name) {
     if(!enabled) return;
-    // if audio file available, clone and play to allow overlap
     const a = audios[name];
     if(a && a.src) {
       try {
         const clone = a.cloneNode();
         clone.volume = volume;
-        clone.play().catch(()=>{ /* autoplay blocked */ });
+        clone.play().catch(()=>{});
         return;
-      } catch(e){
-        // fallback below
-      }
+      } catch(e){}
     }
-    // fallback to oscillator tones
     switch(name){
       case 'click': AudioEngine.click(); break;
       case 'success': AudioEngine.success(); break;
@@ -142,7 +131,6 @@ const SoundManager = (function(){
 
   function setVolume(v){
     volume = Number(v);
-    // update base audios
     Object.values(audios).forEach(x => { try{ x.volume = volume; }catch(e){} });
     localStorage.setItem(STORAGE_KEYS.SOUND_PREF, JSON.stringify({enabled, volume}));
   }
@@ -166,7 +154,6 @@ const SoundManager = (function(){
     if(soundVolumeSlider) soundVolumeSlider.value = volume;
   }
 
-  // public api
   return {
     init: function(){
       restoreFromStorage();
@@ -186,12 +173,10 @@ const SoundManager = (function(){
   };
 })();
 
-/* allow audio on first interaction for mobile autoplay policies */
 document.addEventListener('pointerdown', function once() {
   SoundManager.resumeAudioContext();
   document.removeEventListener('pointerdown', once);
 });
-
 SoundManager.init();
 
 /* ================= Utilities ================= */
@@ -246,6 +231,21 @@ function makeTouchHoverable(el){
   el.addEventListener('touchcancel', () => el.classList.remove('hover'), {passive:true});
 }
 
+/* utility: get numeric price for a stage (fallback to default) */
+function getStagePrice(stage){
+  if(!stage) return DEFAULT_STAGE_PRICE;
+  const p = stage.price;
+  const num = Number(p);
+  if(!isFinite(num) || num < 0) return DEFAULT_STAGE_PRICE;
+  return Math.max(0, Math.round(num));
+}
+
+/* check if stage contains any adult actor */
+function stageHasAdult(stage){
+  if(!stage || !Array.isArray(stage.actors)) return false;
+  return stage.actors.some(a => !!a.adult);
+}
+
 /* ================= Firebase: realtime updates ================= */
 /* fetch initial and listen for changes */
 function fetchStagesRealtime(){
@@ -282,7 +282,9 @@ function renderStages(){
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = `ممثلين: ${ (s.actors || []).length } • نوع: ${ s.free ? 'مجانية' : 'مدفوعة' }`;
+    const priceLabel = s.free ? 'مجانية' : `${ getStagePrice(s) } كوينز`;
+    const adultLabel = stageHasAdult(s) ? ' • 18+' : '';
+    meta.textContent = `ممثلين: ${ (s.actors || []).length } • ${ priceLabel }${adultLabel}`;
 
     const actions = document.createElement('div');
     actions.className = 'actions';
@@ -313,15 +315,18 @@ function renderStages(){
     card.appendChild(meta);
     card.appendChild(actions);
 
+    // locked overlay (show dynamic price)
     if(!unlockedStages.includes(id) && !s.free){
+      const price = getStagePrice(s);
       const lock = document.createElement('div');
       lock.className = 'lock-overlay';
       lock.innerHTML = `<div style="text-align:center">
-        مغلق — افتح بـ <strong>20</strong> كوينز<br/>
+        مغلق — افتح بـ <strong>${price}</strong> كوينز<br/>
         <button class="btn" data-id="${id}" data-action="buy">فتح</button>
       </div>`;
       const buyBtn = lock.querySelector('button[data-action="buy"]');
-      buyBtn.addEventListener('click', ()=>{
+      buyBtn.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
         SoundManager.play('click');
         handleBuyStage(id);
       });
@@ -342,33 +347,68 @@ function renderStages(){
 
 /* ================= Stage operations ================= */
 function handleBuyStage(id){
-  if(coins < 20){
-    alert('مش كفاية كوينز. لازم 20 كوينز تفتح المرحلة.');
+  const stage = stagesData[id] || {};
+  const price = getStagePrice(stage);
+
+  if(price === 0){
+    // free stage — just unlock
+    if(!unlockedStages.includes(id)){
+      unlockedStages.push(id);
+      saveState();
+      updateCoinsDisplay();
+      SoundManager.play('coin');
+      renderStages();
+    }
     return;
   }
-  if(confirm('هل متأكد إنك عايز تفتح المرحلة بـ20 كوينز؟')){
-    coins -= 20;
-    unlockedStages.push(id);
-    saveState();
-    updateCoinsDisplay();
-    SoundManager.play('coin');
-    renderStages();
+
+  if(coins < price){
+    alert(`مش كفاية كوينز. لازم ${price} كوينز تفتح المرحلة.`);
+    return;
   }
+
+  if(!confirm(`هل متأكد إنك عايز تفتح المرحلة بـ ${price} كوينز؟`)) return;
+
+  coins -= price;
+  if(!unlockedStages.includes(id)) unlockedStages.push(id);
+  saveState();
+  updateCoinsDisplay();
+  SoundManager.play('coin');
+  renderStages();
 }
 
 function showStageInfo(id){
   const s = stagesData[id];
   if(!s) return alert('المرحلة مش موجودة');
   const cnt = (s.actors || []).length;
-  alert(`عنوان: ${s.title || id}\nممثلين: ${cnt}\nنوع: ${s.free ? 'مجانية' : 'مدفوعة'}`);
+  const price = s.free ? 'مجانية' : `${ getStagePrice(s) } كوينز`;
+  const adult = stageHasAdult(s) ? '\nملاحظة: تحتوي على ممثلين (18+)' : '';
+  alert(`عنوان: ${s.title || id}\nممثلين: ${cnt}\nالنوع: ${price}${adult}`);
 }
 
 function startStage(id){
   const stage = stagesData[id];
   if(!stage) return alert('المرحلة مش موجودة');
+
+  // if locked and not free, prompt to buy immediately
   if(!stage.free && !unlockedStages.includes(id)){
-    return alert('المرحلة مقفولة — افتحها بالكوينز.');
+    const price = getStagePrice(stage);
+    if(coins < price){
+      alert(`المرحلة مقفولة — تحتاج ${price} كوينز لفتحها.`);
+      return;
+    }
+    if(confirm(`المرحلة مقفولة — هل تريد فتحها الآن مقابل ${price} كوينز؟`)){
+      coins -= price;
+      if(!unlockedStages.includes(id)) unlockedStages.push(id);
+      saveState();
+      updateCoinsDisplay();
+      SoundManager.play('coin');
+      // continue to start after purchase
+    } else {
+      return;
+    }
   }
+
   currentStageId = id;
   currentActors = (stage.actors || []).slice();
   if(currentActors.length === 0){ alert('لا توجد ممثلين في هذه المرحلة'); return; }
@@ -421,8 +461,14 @@ function showActor(){
     optionsGrid.appendChild(b);
   });
 
+  // show adult notice if actor marked adult (developer/site owner can decide how to handle)
+  if(actor && actor.adult){
+    roundResult.textContent = 'ملاحظة: هذا الممثل معلم كـ 18+';
+  } else {
+    roundResult.textContent = '';
+  }
+
   progressEl.textContent = `${currentIndex+1} / ${currentActors.length}`;
-  roundResult.textContent = '';
   nextBtn.classList.add('hidden');
   updateStageScore();
 }

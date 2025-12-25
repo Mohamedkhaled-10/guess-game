@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <title>Dashboard — إدارة المراحل</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
@@ -22,7 +22,7 @@
       <div class="auth-box">
         <label>أدخل كلمة المدير (محلية):</label>
         <input id="admin-pass" type="password" placeholder="admin password" />
-        <button id="admin-login" class="btn">دخول</button>
+        <button id="admin-login" class="btn touch-target">دخول</button>
       </div>
 
       <section id="stages-admin" class="admin-section hidden">
@@ -33,7 +33,20 @@
             <input id="stage-id" placeholder="stage1" />
             <label>عنوان المرحلة</label>
             <input id="stage-title-input" placeholder="مثال: مشاهير ١" />
-            <label><input type="checkbox" id="stage-free" /> مجانية (Stage 1 يجب تكون مجانية)</label>
+
+            <div style="display:flex;gap:12px;align-items:center;margin-top:8px;">
+              <label style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="stage-free" />
+                مجانية (Stage 1 يجب تكون مجانية)
+              </label>
+
+              <!-- سعر المرحلة -->
+              <div style="display:flex;flex-direction:column;">
+                <label for="stage-price" style="font-size:13px;color:var(--muted)">سعر المرحلة (كوينز)</label>
+                <input id="stage-price" type="number" min="0" placeholder="مثال: 20" style="width:140px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)" />
+              </div>
+            </div>
+
             <hr />
             <h4>أضف ممثل</h4>
             <label>اسم الممثل</label>
@@ -42,16 +55,17 @@
             <input id="actor-image-url" placeholder="https://..." />
             <label>خيارات (افصل بـ , ) — اجعل من 3 إلى 4 خيارات</label>
             <input id="actor-options" placeholder="خيار1, خيار2, ... " />
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button id="add-actor" class="btn">أضف للمجموعة</button>
-              <button id="clear-actors" class="btn ghost">إفراغ القائمة</button>
+            <label><input type="checkbox" id="actor-adult" /> علامة 18+ (عرض في قسم البالغين)</label>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <button id="add-actor" class="btn touch-target">أضف للمجموعة</button>
+              <button id="clear-actors" class="btn ghost touch-target">إفراغ القائمة</button>
             </div>
 
             <ul id="actors-list" class="actors-list" style="margin-top:12px"></ul>
 
-            <div style="margin-top:12px;display:flex;gap:8px;">
-              <button id="save-stage" class="btn primary">حفظ المرحلة في Firebase</button>
-              <button id="delete-stage" class="btn danger">حذف المرحلة</button>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button id="save-stage" class="btn primary touch-target">حفظ المرحلة في Firebase</button>
+              <button id="delete-stage" class="btn danger touch-target">حذف المرحلة</button>
             </div>
             <p class="smallnote" style="margin-top:8px">من الأفضل أن تحتوي المرحلة على 10 ممثلين. سيتم عرضهم بالترتيب الموجود بالقائمة.</p>
           </div>

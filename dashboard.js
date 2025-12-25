@@ -1,4 +1,6 @@
 // dashboard.js (محدّث)
+// يضيف إمكانية تمييز الممثل كـ adult وحفظه في Firebase ويدعم سعر المرحلة (price)
+
 const adminLoginBtn = document.getElementById('admin-login');
 const adminPassInput = document.getElementById('admin-pass');
 const adminWelcome = document.getElementById('admin-welcome');
@@ -7,9 +9,13 @@ const stagesAdminSection = document.getElementById('stages-admin');
 const stageIdInput = document.getElementById('stage-id');
 const stageTitleInput = document.getElementById('stage-title-input');
 const stageFreeInput = document.getElementById('stage-free');
+const stagePriceInput = document.getElementById('stage-price');
+
 const actorNameInput = document.getElementById('actor-name');
 const actorImageInput = document.getElementById('actor-image-url');
 const actorOptionsInput = document.getElementById('actor-options');
+const actorAdultInput = document.getElementById('actor-adult');
+
 const addActorBtn = document.getElementById('add-actor');
 const clearActorsBtn = document.getElementById('clear-actors');
 const actorsList = document.getElementById('actors-list');
@@ -21,7 +27,21 @@ let currentActorsTemp = [];
 let isAdmin = false;
 const ADMIN_PASSWORD = 'admin123';
 
-adminLoginBtn.addEventListener('click', ()=>{
+/* --- Helper: disable price input when free checked --- */
+function updatePriceInputState(){
+  if(stageFreeInput.checked){
+    stagePriceInput.disabled = true;
+    stagePriceInput.value = '0';
+    stagePriceInput.classList.add('ghost');
+  } else {
+    stagePriceInput.disabled = false;
+    stagePriceInput.classList.remove('ghost');
+  }
+}
+stageFreeInput.addEventListener('change', updatePriceInputState);
+updatePriceInputState(); // init
+
+adminLoginBtn.addEventListener('click', ()=> {
   const p = adminPassInput.value;
   if(p === ADMIN_PASSWORD){
     isAdmin = true;
@@ -37,12 +57,14 @@ addActorBtn.addEventListener('click', ()=>{
   const name = actorNameInput.value.trim();
   const img = actorImageInput.value.trim();
   let opts = actorOptionsInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+  const adultFlag = actorAdultInput.checked === true;
   if(!name || !img || opts.length < 2) return alert('ادخل اسم، رابط صورة، و على الأقل خيارين.');
   if(!opts.includes(name)) opts.push(name);
-  const actorObj = { name, image: img, options: opts.slice(0,4) };
+  const actorObj = { name, image: img, options: opts.slice(0,4), adult: adultFlag };
   currentActorsTemp.push(actorObj);
   renderActorsTemp();
   actorNameInput.value = actorImageInput.value = actorOptionsInput.value = '';
+  actorAdultInput.checked = false;
 });
 
 clearActorsBtn.addEventListener('click', ()=>{
@@ -55,9 +77,17 @@ function renderActorsTemp(){
   actorsList.innerHTML = '';
   currentActorsTemp.forEach((a, idx)=>{
     const li = document.createElement('li');
+    li.style.display = 'flex';
+    li.style.justifyContent = 'space-between';
+    li.style.alignItems = 'center';
+    li.style.gap = '8px';
     li.innerHTML = `<div style="display:flex;gap:10px;align-items:center">
       <img src="${a.image}" width="48" height="48" style="object-fit:cover;border-radius:6px"/>
-      <div style="min-width:120px"><strong>${a.name}</strong><div class="smallnote">${a.options.join(' ، ')}</div></div>
+      <div style="min-width:140px">
+        <strong>${a.name}</strong>
+        <div class="smallnote">${a.options.join(' ، ')}</div>
+        ${a.adult ? '<div class="smallnote" style="color:var(--gold-2);margin-top:6px">18+</div>' : ''}
+      </div>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
         <button class="btn ghost" data-idx="${idx}" data-action="up">▲</button>
@@ -85,7 +115,7 @@ function loadActorToInputs(i){
   actorNameInput.value = a.name;
   actorImageInput.value = a.image;
   actorOptionsInput.value = a.options.join(', ');
-  // remove original to avoid duplicates when saving
+  actorAdultInput.checked = !!a.adult;
   currentActorsTemp.splice(i,1);
   renderActorsTemp();
 }
@@ -94,10 +124,14 @@ saveStageBtn.addEventListener('click', ()=>{
   const id = stageIdInput.value.trim();
   const title = stageTitleInput.value.trim();
   const free = stageFreeInput.checked;
+  let price = Number(stagePriceInput.value || 0);
+  if(price < 0 || Number.isNaN(price)) price = 0;
+
   if(!id || !title) return alert('ادخل معرف و عنوان المرحلة.');
   if(currentActorsTemp.length === 0) return alert('أضف ممثلين للمرحلة (مطلوب على الأقل ممثل واحد).');
 
-  const stageObj = { title, free, actors: currentActorsTemp };
+  // if marked free, force price zero
+  const stageObj = { title, free, price: free ? 0 : price, actors: currentActorsTemp };
 
   db.ref('stages/' + id).set(stageObj)
     .then(()=> {
@@ -106,6 +140,8 @@ saveStageBtn.addEventListener('click', ()=>{
       renderActorsTemp();
       stageIdInput.value = stageTitleInput.value = '';
       stageFreeInput.checked = false;
+      stagePriceInput.value = '';
+      updatePriceInputState();
       loadExistingStages();
     })
     .catch(err=>{ console.error(err); alert('فشل الحفظ'); });
@@ -126,9 +162,14 @@ function loadExistingStages(){
     const data = snap.val() || {};
     existingStagesEl.innerHTML = '';
     Object.keys(data).sort().forEach(id=>{
+      const s = data[id] || {};
+      const priceSym = s.free ? '<strong style="color:var(--gold-2)">مجانية</strong>' : `<strong>${(s.price !== undefined ? s.price : 0)} كوينز</strong>`;
       const li = document.createElement('li');
-      li.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>${id}</strong><div class="smallnote">${data[id].title}</div></div>
+      li.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div>
+          <strong>${id}</strong>
+          <div class="smallnote">${s.title || ''} — ${priceSym}</div>
+        </div>
         <div style="display:flex;gap:8px">
           <button class="btn" data-id="${id}" data-action="edit">تعديل</button>
           <button class="btn danger" data-id="${id}" data-action="remove">حذف</button>
@@ -151,10 +192,12 @@ function loadExistingStages(){
 
 function loadStageToForm(id){
   db.ref('stages/' + id).once('value').then(snap=>{
-    const s = snap.val();
+    const s = snap.val() || {};
     stageIdInput.value = id;
     stageTitleInput.value = s.title || '';
     stageFreeInput.checked = !!s.free;
+    stagePriceInput.value = (s.price !== undefined ? s.price : 0);
+    updatePriceInputState();
     currentActorsTemp = s.actors ? s.actors.slice() : [];
     renderActorsTemp();
     window.scrollTo({top:0,behavior:'smooth'});
@@ -164,4 +207,9 @@ function loadStageToForm(id){
 function removeStage(id){
   if(!confirm('حذف نهائي: هل متأكد؟')) return;
   db.ref('stages/' + id).remove().then(()=> loadExistingStages());
+}
+
+/* initialize existing list when admin already logged (optional) */
+if(isAdmin){
+  loadExistingStages();
 }

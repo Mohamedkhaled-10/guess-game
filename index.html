@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <title>Guess The Actor — لعبة الممثل</title>
 
   <!-- خطوط محسنة -->
@@ -22,33 +22,48 @@
   <div class="app-shell">
     <header class="topbar">
       <div class="logo">
-        <h1></h1>
-        <p class="tag"></p>
+        <h1>GUESS THE ACTOR</h1>
+        <p class="tag">ثيم دافي وموحّد — لعبة الأسئلة</p>
       </div>
 
       <div class="status" aria-live="polite">
+        <div class="player-meta" id="player-meta">
+          <div class="level">
+            <div id="player-level">Lvl 1</div>
+            <div class="xp-bar" aria-hidden="true">
+              <div id="xp-fill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div class="streak" title="سلسلة الإجابات الصحيحة">
+            🔥 <span id="streak-count">0</span>
+          </div>
+        </div>
+
         <div class="coins" id="coins-wrap" title="رصيد الكوينز">
           <svg class="icon icon-coin" aria-hidden="true"><use href="#icon-coin"></use></svg>
           <span id="coins">0</span>
         </div>
 
         <!-- زر تبديل الصوت + slider صغير للتحكم في مستوى الصوت -->
-        <div class="sound-control" aria-hidden="false">
-          <button id="sound-toggle" class="btn small ghost" aria-pressed="false" title="تشغيل/إيقاف الأصوات">
+        <div class="sound-control" id="sound-control" aria-hidden="false">
+          <button id="sound-toggle" class="btn small ghost touch-target" aria-pressed="false" title="تشغيل/إيقاف الأصوات">
             <svg class="icon icon-speaker" aria-hidden="true"><use href="#icon-speaker"/></svg>
             صوت
           </button>
           <input id="sound-volume" class="volume-slider" type="range" min="0" max="1" step="0.05" value="0.8" aria-label="مستوى الصوت"/>
         </div>
 
-        <a class="btn small" href="dashboard.html" target="_blank" rel="noopener">لوحة التحكم</a>
+        <button id="daily-reward-btn" class="btn small ghost touch-target" title="مكافأة يومية">مكافأة يومية</button>
+
+        <a class="btn small touch-target" href="dashboard.html" target="_blank" rel="noopener">لوحة التحكم</a>
       </div>
     </header>
 
     <!-- إعلان Rewarded Modal -->
     <div id="rewarded-ad" class="ad-modal hidden" role="dialog" aria-modal="true" aria-labelledby="ad-title">
       <div class="ad-content">
-        <button id="close-ad-btn" class="close-ad hidden" aria-label="إغلاق الإعلان">
+        <button id="close-ad-btn" class="close-ad hidden touch-target" aria-label="إغلاق الإعلان">
           <svg class="icon"><use href="#icon-close"/></svg>
         </button>
         <img id="ad-image" src="" alt="إعلان" />
@@ -62,13 +77,14 @@
       <section id="game-screen" class="game-screen hidden" aria-hidden="true">
         <div class="game-header">
           <div class="left">
-            <button id="back-to-stages" class="btn ghost" aria-label="الرجوع">
+            <button id="back-to-stages" class="btn ghost touch-target" aria-label="الرجوع">
               <svg class="icon"><use href="#icon-back"/></svg>
               رجوع
             </button>
             <div class="stage-info">
               <h2 id="stage-title">المرحلة</h2>
               <div id="progress" class="smallnote">0 / 10</div>
+              <div id="star-display" class="star-display" aria-hidden="true"></div>
             </div>
           </div>
           <div class="right smallnote">الهدف: كل إجابة صحيحة = 2 كوينز</div>
@@ -81,24 +97,37 @@
 
           <div id="options" class="options-grid" role="list"></div>
 
+          <div class="helpers-row">
+            <div class="powerups">
+              <button id="pu-remove2" class="btn small touch-target">احذف خيارين (8 كوينز)</button>
+              <button id="pu-firstletter" class="btn small touch-target">أظهر أول حرف (6 كوينز)</button>
+              <button id="pu-skip" class="btn small touch-target">تخطي (12 كوينز)</button>
+            </div>
+            <div class="play-limits smallnote" id="play-limits"></div>
+          </div>
+
           <div class="game-footer">
             <div id="round-result" aria-live="polite"></div>
             <div class="footer-actions">
               <div id="stage-score" class="smallnote"></div>
-              <button id="next-btn" class="btn hidden">التالي <svg class="icon"><use href="#icon-next"/></svg></button>
+              <button id="next-btn" class="btn hidden touch-target">التالي <svg class="icon"><use href="#icon-next"/></svg></button>
             </div>
           </div>
         </div>
       </section>
 
       <div class="ad-reward-container">
-        <button id="watch-ad-btn" class="btn" aria-label="شاهد إعلان واحصل على 20 كوينز">
+        <button id="watch-ad-btn" class="btn touch-target" aria-label="شاهد إعلان واحصل على 20 كوينز">
           <svg class="icon"><use href="#icon-play"/></svg>
           شاهد إعلان واحصل على 20 كوينز
         </button>
         <p id="ad-message" class="hidden">تمت إضافة 20 كوينز! 💰</p>
       </div>
 
+      <section class="badges-panel" aria-hidden="false">
+        <h3>الإنجازات</h3>
+        <div id="badges" class="badges"></div>
+      </section>
     </main>
 
     <footer class="footer">
@@ -118,6 +147,7 @@
     <symbol id="icon-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="icon-check" viewBox="0 0 24 24"><path d="M4 12l4 4L20 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="icon-speaker" viewBox="0 0 24 24"><path d="M5 9v6h4l5 4V5L9 9H5z"/><path d="M16.5 8.5a4 4 0 010 7" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="icon-star" viewBox="0 0 24 24"><path d="M12 .8l2.9 6 6.6.6-5 4.2 1.6 6.3L12 15.8 6 18.7l1.6-6.3-5-4.2 6.6-.6z" fill="currentColor"/></symbol>
   </svg>
 
   <script src="game.js" defer></script>
